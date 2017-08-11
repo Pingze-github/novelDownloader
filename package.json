@@ -1,0 +1,11 @@
+{
+  "name": "noveldownloader",
+  "version": "1.0.0",
+  "description": "通用小说下载器",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "author": "wang719695@gmail.com",
+  "license": "ISC"
+}
