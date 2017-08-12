@@ -41,8 +41,8 @@ function Taskpool() {
 Taskpool.prototype = {
   constructor: Taskpool,
   init(array) {
-    if (!array instanceof Array) throw new Error('taskpool init() cannot accept param not array');
-    this.queue = array;
+    if (!array || !array instanceof Array) throw new Error('taskpool init() cannot accept param not array');
+    this.queue = array.slice(0);
     this.pushed += array.length;
     return this;
   },
@@ -68,8 +68,9 @@ Taskpool.prototype = {
     }
     return this;
   },
-  limit(_limit) {
-    this.options.limit= _limit;
+  limit(limit) {
+    if (typeof limit !== 'number') throw new Error('taskpool limit() cannot accept param not number');
+    this.options.limit= limit;
     return this;
   },
   start(options) {
@@ -103,10 +104,12 @@ Taskpool.prototype = {
   },
   waitend() {
     this.options.endsWhenEmpty = true;
+    return this;
   },
   runOne(params) {
     this.running++;
-    this.callback(...params).then((result) => {
+    let cparams = Object.prototype.toString.call(params) === '[object Array]' ? params : [params];
+    this.callback(...cparams).then((result) => {
       this.running--;
       this.success++;
       if (this.options.saveResult === true) {
@@ -152,14 +155,14 @@ Taskpool.prototype = {
     return this;
   },
   progress(callback) {
-    this.eventHub.on('success', () => {
-      callback(this.success + this.failed, this.pushed, this.success, this.failed, 0);
+    this.eventHub.on('success', (data) => {
+      callback(this.success + this.failed, this.pushed, this.success, this.failed, 0, data[1]);
     });
-    this.eventHub.on('failed', () => {
-      callback(this.success + this.failed, this.pushed, this.success, this.failed, -1);
+    this.eventHub.on('failed', (data) => {
+      callback(this.success + this.failed, this.pushed, this.success, this.failed, -1, data[1]);
     });
-    this.eventHub.on('taskPushed', () => {
-      callback(this.success + this.failed, this.pushed, this.success, this.failed, 1);
+    this.eventHub.on('taskPushed', (data) => {
+      callback(this.success + this.failed, this.pushed, this.success, this.failed, 1, data[1]);
     });
     return this;
   }

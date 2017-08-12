@@ -8,13 +8,27 @@
 // 代码通用
 // 用户可配置
 
+const fs = require('fs');
 const URL = require('url');
-const request = require('request');
+const PATH = require('path');
+const rq = require('request');
 const iconv = require('iconv-lite');
 const cheerio = require('cheerio');
 
 const Taskpool = require('./taskpool');
 const config = require('./config');
+
+let logger = {
+  info() {
+    console.log(`\u001b[32m [NovelDownloader][${new Date().toLocaleTimeString('chinese', {hour12: false})}]`, ...arguments);
+  },
+  error() {
+    console.log(`\u001b[31m [NovelDownloader][${new Date().toLocaleTimeString('chinese', {hour12: false})}]`, ...arguments);
+  },
+  warn() {
+    console.log(`\u001b[33m [NovelDownloader][${new Date().toLocaleTimeString('chinese', {hour12: false})}]`, ...arguments);
+  }
+};
 
 function randomIp() {
   let ip = '';
@@ -27,47 +41,108 @@ function randomIp() {
 
 function getFullHref(href, url) {
   if (url.endsWith('/')) url = url.slice(0, -1);
-  let {host, protocal} = URL.parse(url);
+  let {host, protocol} = URL.parse(url);
+  protocol = protocol || 'http:';
   if (href.startsWith('http')) return href;
-  if (href.startsWith('//')) return `${protocal}:${href}`;
-  if (href.startsWith('/')) return `${protocal}://${host}${href}`;
+  if (href.startsWith('//')) return `${protocol}${href}`;
+  if (href.startsWith('/')) return `${protocol}//${host}${href}`;
   return `${url}/${href}`;
 }
 
-function getPage(url) {
+function getHostConfig(url) {
+  let host = URL.parse(url).host;
+  if (!(host in config.hosts)) {
+    logger.error(`尚未配置此host: ${host} 。请配置后再尝试...`);
+    process.exit();
+  }
+  return config.hosts[host];
+}
+
+/**
+ * 请求数据，自动重试
+ * 返回未编码的chunks
+ * @param options
+ * @returns {Promise}
+ */
+function request(options) {
+  // FIXME 超时不能正常重试
   return new Promise((resolve, reject) => {
-    let options = config.requestOptions;
-    options.url = url;
-    options.headers['X-Real-IP'] = randomIp();
-    options.headers['X-Forwarded-For'] = randomIp();
-    let req = request(options);
-    req.on('error', function(err) {
-      reject(err);
+    let req = rq(options);
+    req.on('error', function (err) {
+      if (['ETIMEDOUT', 'ESOCKETTIMEDOUT'].includes(err.code) || true) {
+        req = rq(options);
+        logger.warn(`${options.url} 请求超时，重试...`);
+      } else {
+        reject(err);
+      }
     });
-    req.on('response', function(res) {
+    req.on('response', function (res) {
       let chunks = [];
       res.on('data', function (chunk) {
         chunks.push(chunk);
       });
-      res.on('end',function(){
-        let body = chunks.toString();
-        let charset = body.match('charset=["\']{0,1}([a-zA-Z0-9]{3,8})["\']');
-        charset = charset ? charset[1] : 'utf-8';
-        let result = iconv.decode(Buffer.concat(chunks), charset);
-        resolve(result);
+      res.on('end', function () {
+        resolve(chunks);
       });
     });
   });
 }
 
-async function start(url) {
-  let host = URL.parse(url).host;
-  if (!(host in config.hosts)) {
-    console.log(`尚未配置此host: ${host} 。请配置后再尝试...`);
+/**
+ * 获取url指向页面文档
+ * 自动识别编码
+ * @param url
+ * @returns {Promise}
+ */
+async function getPage(url) {
+  let options = config.requestOptions;
+  options.url = url;
+  options.headers['X-Real-IP'] = randomIp();
+  options.headers['X-Forwarded-For'] = randomIp();
+  let chunks = await request(options);
+  let body = chunks.toString();
+  let charset = body.match('charset=["\']{0,1}([a-zA-Z0-9]{3,8})["\']');
+  charset = charset ? charset[1] : 'utf-8';
+  return iconv.decode(Buffer.concat(chunks), charset);
+}
+
+async function getContent(chapter) {
+  let url = chapter.url;
+  let hostConfig = getHostConfig(url);
+  let page = await getPage(url);
+  let $ = cheerio.load(page);
+  let $content;
+  if (hostConfig.content.selector) {
+    $content = $(hostConfig.content.selector);
+  } else {
+    eval(`$content = ${hostConfig.content.jquery}`);
   }
-  let hostConfig = config.hosts[host];
-  let catalogPage = await getPage(url);
-  const $ = cheerio.load(catalogPage);
+  return $content.text();
+}
+
+function getInfo($, url) {
+  let hostConfig = getHostConfig(url);
+  let info = {};
+  for (let item of ['title', 'author']) {
+    let $item;
+    if (hostConfig[item].selector) {
+      $item = $(hostConfig[item].selector).text();
+    } else {
+      eval(`$item = ${hostConfig[item].jquery}`);
+    }
+    if (!$item) {
+      return logger.error(`未检索到小说${item}，请检查 ${URL.parse(url).host} 配置...`);
+    }
+    info[item] = $item;
+  }
+  if (info.author.match('[:：]')) {
+    info.author = info.author.match('[：:]{1}(.+)$')[1];
+  }
+  return info;
+}
+
+function getCatalog($, url) {
+  let hostConfig = getHostConfig(url);
   let $catalog;
   if (hostConfig.catalog.selector) {
     $catalog = $(hostConfig.catalog.selector);
@@ -75,30 +150,91 @@ async function start(url) {
     eval(`$catalog = ${hostConfig.catalog.jquery}`);
   }
   if (!$catalog) {
-    return console.log(`未找到目录，请检查 ${host} 配置...`);
+    logger.error(`未检索到小说目录，请检查 ${URL.parse(url).host} 配置...`);
+    process.exit();
   }
-
-
-  let catalog = (($c) => {
+  return (($c) => {
     let c = [];
     for (let index of Array.from({length: $c.length}, (v, i) => i)) {
       $ch = $c.eq(index);
       c.push({
+        index,
         title: $ch.text(),
         url: getFullHref($ch.attr('href'), url)
       });
+      index++;
     }
     return c;
   })($catalog);
+}
 
-  console.log(catalog.length)
+function writeFile(info, catalog, saveDir) {
+  let path = PATH.join(saveDir, `${info.title}.txt`);
+  let content = '';
+  content += info.title + '\r\n';
+  content += `作者：${info.title}\r\n\r\n`;
+  for (let chapter of catalog) {
+    content += chapter.title + '\r\n\r\n';
+    content += (chapter.content + '\r\n\r\n');
+  }
+  fs.writeFileSync(path, content, 'utf-8');
+  return path;
+}
 
+async function start(url) {
+  logger.info('程序启动');
+  try{
+    fs.mkdirSync(config.saveDir);
+  } catch (err) {
+    if (err.code !== 'EEXIST') {
+      console.error(`创建存放目录 ${config.saveDir} 失败。请检查配置...`);
+      process.exit();
+    }
+  }
+  let catalogPage = await getPage(url);
+  const $ = cheerio.load(catalogPage);
+  let info = getInfo($, url);
+  let catalog = getCatalog($, url);
+  logger.info(`成功获取书籍信息。书名: ${info.title} 作者: ${info.author}`);
+  logger.info(`成功获取书籍目录。共${catalog.length}章`);
+
+  taskpool = new Taskpool();
+  taskpool
+    .option({
+      saveResult: false,
+      endsWhenEmpty: true
+    })
+    .init(catalog)
+    .limit(config.limit)
+    .task(getContent)
+    .on('success', (content, chapter) => {
+      catalog[chapter.index].content = content;
+    })
+    .progress((finish, total, success, failed, state, chapter) => {
+      // 此处报错的catch
+      if (state === -1) {
+        logger.warn(`${chapter.url} 下载失败`);
+      }
+      logger.info(`章节下载进度: ${finish}/${total}. ${failed}个失败`);
+    })
+    .then(async () => {
+      logger.info('全部下载完成');
+      let savePath = writeFile(info, catalog, config.saveDir);
+      logger.info('写入文件完成: ' + savePath);
+    })
+    .start();
 }
 
 
 if (!module.parent) {
   let url = 'http://www.biquge.tv/0_621/';
   start(url).catch((err) => {
-    console.log(err);
+    logger.info(err);
   });
+/*  chapter = {url: 'http://www.biquge.tv/0_621/2978568.html'};
+  getContent(chapter).then((content) => {
+    logger.info(content);
+    fs.writeFileSync('./test.txt', content, 'utf-8');
+  });*/
 }
+
