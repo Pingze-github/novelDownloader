@@ -70,8 +70,7 @@ function request(options) {
     let req = rq(options);
     req.on('error', function (err) {
       if (['ETIMEDOUT', 'ESOCKETTIMEDOUT'].includes(err.code) || true) {
-        req = rq(options);
-        logger.warn(`${options.url} 请求超时，重试...`);
+        resolve(false);
       } else {
         reject(err);
       }
@@ -91,6 +90,7 @@ function request(options) {
 /**
  * 获取url指向页面文档
  * 自动识别编码
+ * 自动重试
  * @param url
  * @returns {Promise}
  */
@@ -99,8 +99,19 @@ async function getPage(url) {
   options.url = url;
   options.headers['X-Real-IP'] = randomIp();
   options.headers['X-Forwarded-For'] = randomIp();
-  let chunks = await request(options);
-  let body = chunks.toString();
+  let chunks;
+  for (let i = 0; i < config.maxRetry; i++) {
+    chunks = await request(options);
+    if (chunks) break;
+    logger.warn(`请求 ${url} 超时，重试${i+1}次...`);
+  }
+  let body;
+  if(!chunks) {
+    logger.warn(`请求 ${url} 失败，跳过`);
+    body = '';
+  } else {
+    body = chunks.toString();
+  }
   let charset = body.match('charset=["\']{0,1}([a-zA-Z0-9]{3,8})["\']');
   charset = charset ? charset[1] : 'utf-8';
   return iconv.decode(Buffer.concat(chunks), charset);
@@ -172,7 +183,7 @@ function writeFile(info, catalog, saveDir) {
   let path = PATH.join(saveDir, `${info.title}.txt`);
   let content = '';
   content += info.title + '\r\n';
-  content += `作者：${info.title}\r\n\r\n`;
+  content += `作者：${info.author}\r\n\r\n`;
   for (let chapter of catalog) {
     content += chapter.title + '\r\n\r\n';
     content += (chapter.content + '\r\n\r\n');

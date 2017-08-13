@@ -4,11 +4,12 @@ module.exports = {
   saveDir: './books/',
   // 请求并发限制数目
   limit: 5,
+  // 链接超时最大重试次数
+  maxRetry: 5,
   // 请求通用设置
   requestOptions: {
     method: 'GET',
     timeout: 5000,
-    maxRetry: 3,
     headers: {
       'User-Agent': 'Mozilla/5.0 (Windows NT 6.1; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/59.0.3071.115 Safari/537.36'
     }
