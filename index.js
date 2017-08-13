@@ -20,13 +20,13 @@ const config = require('./config');
 
 let logger = {
   info() {
-    console.log(`\u001b[32m [NovelDownloader][${new Date().toLocaleTimeString('chinese', {hour12: false})}]`, ...arguments);
+    console.log(`\u001b[32m [NovelDownloader][${new Date().toLocaleTimeString('chinese', {hour12: false})}]`, ...arguments, '\u001b[37m');
   },
   error() {
-    console.log(`\u001b[31m [NovelDownloader][${new Date().toLocaleTimeString('chinese', {hour12: false})}]`, ...arguments);
+    console.log(`\u001b[31m [NovelDownloader][${new Date().toLocaleTimeString('chinese', {hour12: false})}]`, ...arguments, '\u001b[37m');
   },
   warn() {
-    console.log(`\u001b[33m [NovelDownloader][${new Date().toLocaleTimeString('chinese', {hour12: false})}]`, ...arguments);
+    console.log(`\u001b[33m [NovelDownloader][${new Date().toLocaleTimeString('chinese', {hour12: false})}]`, ...arguments, '\u001b[37m');
   }
 };
 
@@ -238,14 +238,14 @@ async function start(url) {
 
 
 if (!module.parent) {
-  let url = 'http://www.biquge.tv/0_621/';
+  let url = process.argv[2];
+  if (!url) {
+    logger.error('未传入网址，请重新输入');
+    process.exit();
+  }
+  //url = 'http://www.biquge.tv/0_621/';
   start(url).catch((err) => {
     logger.info(err);
   });
-/*  chapter = {url: 'http://www.biquge.tv/0_621/2978568.html'};
-  getContent(chapter).then((content) => {
-    logger.info(content);
-    fs.writeFileSync('./test.txt', content, 'utf-8');
-  });*/
 }
 
