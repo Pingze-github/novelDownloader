@@ -53,6 +53,23 @@ module.exports = {
       content: {
         selector: '#content',
       }
+    },
+    'www.biqubao.com': {
+      title: {
+        selector: '#info h1'
+      },
+      author: {
+        selector: '#info p:nth-child(2)'
+      },
+      cover: {
+        selector: '#fmimg img'
+      },
+      catalog: {
+        selector: '#list dd a',
+      },
+      content: {
+        selector: '#content',
+      }
     }
   }
 };
