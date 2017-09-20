@@ -173,9 +173,11 @@ function getCatalog($, url) {
     let c = [];
     for (let index of Array.from({length: $c.length}, (v, i) => i)) {
       $ch = $c.eq(index);
+      let title = $ch.text();
+      if (!/第.+章/.test(title)) title = `第${index + 1}章 ${title}`;
       c.push({
         index,
-        title: $ch.text(),
+        title,
         url: getFullHref($ch.attr('href'), url)
       });
       index++;
