@@ -121,14 +121,19 @@ async function getContent(chapter) {
   let url = chapter.url;
   let hostConfig = getHostConfig(url);
   let page = await getPage(url);
-  let $ = cheerio.load(page);
+  let $ = cheerio.load(page,{decodeEntities: false});
   let $content;
   if (hostConfig.content.selector) {
     $content = $(hostConfig.content.selector);
   } else {
     eval(`$content = ${hostConfig.content.jquery}`);
   }
-  return $content.text();
+  let content = $content.text();
+  let lines = content.match(/\n/g);
+  if (lines && lines.length > 3) return content;
+  content = $content.html();
+  content = content.replace(/(<br>)+/g, '\r\n');
+  return content;
 }
 
 function getInfo($, url) {
