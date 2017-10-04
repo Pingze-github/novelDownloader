@@ -145,12 +145,14 @@ function getInfo($, url) {
       $item = $(hostConfig[item].selector).text();
     } else {
       eval(`$item = ${hostConfig[item].jquery}`);
+      if (typeof $item !== 'string') $item = $item.text();
     }
     if (!$item) {
       return logger.error(`未检索到小说${item}，请检查 ${URL.parse(url).host} 配置...`);
     }
     info[item] = $item;
   }
+  console.log(info);
   if (info.author.match('[:：]')) {
     info.author = info.author.match('[：:]{1}(.+)$')[1];
   }

@@ -70,6 +70,23 @@ module.exports = {
       content: {
         selector: '#content',
       }
+    },
+    'www.sjtxt.com': {
+      title: {
+        selector: '.info_des h1'
+      },
+      author: {
+        jquery: "$('.info_des dl').eq(0)"
+      },
+      cover: {
+        selector: '.tupian>a>img'
+      },
+      catalog: {
+        jquery: "$('[id=info]').eq(2).find('li>a')",
+      },
+      content: {
+        selector: '#content1',
+      }
     }
   }
 };
