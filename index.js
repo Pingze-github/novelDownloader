@@ -247,13 +247,18 @@ async function start(url) {
 
 
 if (!module.parent) {
-  let url = process.argv[2];
-  if (!url) {
-    logger.error('未传入网址，请重新输入');
+  let param = process.argv[2];
+  if (!param) {
+    logger.error('未传入必要参数，请重新输入');
     process.exit();
   }
-  //url = 'http://www.biquge.tv/0_621/';
-  start(url).catch((err) => {
+  if (param === 'list') {
+    for (host in config.hosts) {
+      console.log(host);
+    }
+    process.exit();
+  }
+  start(param).catch((err) => {
     logger.info(err);
   });
 }
