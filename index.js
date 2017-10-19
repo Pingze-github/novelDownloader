@@ -133,6 +133,9 @@ async function getContent(chapter) {
   if (lines && lines.length > 3) return content;
   content = $content.html();
   content = content.replace(/(<br>)+/g, '\r\n');
+  config.removeStringList.forEach(string => {
+    content = content.replace(new RegExp(string, 'g'), '');
+  });
   return content;
 }
 

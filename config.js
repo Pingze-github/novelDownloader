@@ -14,6 +14,10 @@ module.exports = {
       'User-Agent': 'Mozilla/5.0 (Windows NT 6.1; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/59.0.3071.115 Safari/537.36'
     }
   },
+  removeStringList: [
+    'readx();',
+    '                        readx();'
+  ],
   // 站点规则配置（按主机名区分）
   hosts: {
     // 主机名
@@ -86,6 +90,34 @@ module.exports = {
       },
       content: {
         selector: '#content1',
+      }
+    },
+    'www.miaobige.com': {
+      title: {
+        selector: '#smallcons>h1',
+      },
+      author: {
+        selector: '#smallcons span a'
+      },
+      catalog: {
+        selector: '#readerlists ul li a'
+      },
+      content: {
+        selector: '#content'
+      }
+    },
+    'www.23us.cc': {
+      title: {
+        selector: '.btitle h1'
+      },
+      author: {
+        selector: '.btitle em'
+      },
+      catalog: {
+        selector: '.chapterlist dd a'
+      },
+      content: {
+        selector: '#content'
       }
     }
   }
