@@ -21,6 +21,26 @@ module.exports = {
   // 站点规则配置（按主机名区分）
   hosts: {
     // 主机名
+    'www.biquge.com.tw': {
+      // 标题
+      title: {
+        // 内置两种选择方式：CSS选择器 和 jQuery语句。都存在时优先使用selector，取text()。
+        selector: '#info h1'
+      },
+      // 作者
+      author: {
+        selector: '#info p:nth-child(2)'
+      },
+      // 目录。指页面中包含目录链接的<a>或底层元素
+      catalog: {
+        selector: '#list a',
+        jquery: "$('#list').children('a')"
+      },
+      // 正文容器
+      content: {
+        selector: '#content',
+      }
+    },
     'www.biquge.tv': {
       // 标题
       title: {
@@ -76,6 +96,23 @@ module.exports = {
       }
     },
     'www.sjtxt.com': {
+      title: {
+        selector: '.info_des h1'
+      },
+      author: {
+        jquery: "$('.info_des dl').eq(0)"
+      },
+      cover: {
+        selector: '.tupian>a>img'
+      },
+      catalog: {
+        jquery: "$('[id=info]').eq(2).find('li>a')",
+      },
+      content: {
+        selector: '#content1',
+      }
+    },
+    'www.sjtxt.la': {
       title: {
         selector: '.info_des h1'
       },
