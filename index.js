@@ -20,19 +20,19 @@ const config = require('./config');
 
 let logger = {
   info() {
-    console.log(`\u001b[32m [NovelDownloader][${new Date().toLocaleTimeString('chinese', {hour12: false})}]`, ...arguments, '\u001b[37m');
+    console.log(`\u001b[32m [NovelDownloader][${new Date().toLocaleTimeString('chinese', { hour12: false })}]`, ...arguments, '\u001b[37m');
   },
   error() {
-    console.log(`\u001b[31m [NovelDownloader][${new Date().toLocaleTimeString('chinese', {hour12: false})}]`, ...arguments, '\u001b[37m');
+    console.log(`\u001b[31m [NovelDownloader][${new Date().toLocaleTimeString('chinese', { hour12: false })}]`, ...arguments, '\u001b[37m');
   },
   warn() {
-    console.log(`\u001b[33m [NovelDownloader][${new Date().toLocaleTimeString('chinese', {hour12: false})}]`, ...arguments, '\u001b[37m');
+    console.log(`\u001b[33m [NovelDownloader][${new Date().toLocaleTimeString('chinese', { hour12: false })}]`, ...arguments, '\u001b[37m');
   }
 };
 
 function randomIp() {
   let ip = '';
-  for (let i in Array.from({length:4})) {
+  for (let i in Array.from({ length: 4 })) {
     let pattern = Math.ceil(Math.random() * 254);
     ip += pattern.toString() + '.';
   }
@@ -41,7 +41,7 @@ function randomIp() {
 
 function getFullHref(href, url) {
   if (url.endsWith('/')) url = url.slice(0, -1);
-  let {host, protocol} = URL.parse(url);
+  let { host, protocol } = URL.parse(url);
   protocol = protocol || 'http:';
   if (href.startsWith('http')) return href;
   if (href.startsWith('//')) return `${protocol}${href}`;
@@ -99,14 +99,15 @@ async function getPage(url) {
   options.url = url;
   options.headers['X-Real-IP'] = randomIp();
   options.headers['X-Forwarded-For'] = randomIp();
+  options.headers['Referer'] = url;
   let chunks;
   for (let i = 0; i < config.maxRetry; i++) {
     chunks = await request(options);
     if (chunks) break;
-    logger.warn(`请求 ${url} 超时，重试${i+1}次...`);
+    logger.warn(`请求 ${url} 超时，重试${i + 1}次...`);
   }
   let body;
-  if(!chunks) {
+  if (!chunks) {
     logger.warn(`请求 ${url} 失败，跳过`);
     body = '';
   } else {
@@ -121,7 +122,7 @@ async function getContent(chapter) {
   let url = chapter.url;
   let hostConfig = getHostConfig(url);
   let page = await getPage(url);
-  let $ = cheerio.load(page,{decodeEntities: false});
+  let $ = cheerio.load(page, { decodeEntities: false });
   let $content;
   if (hostConfig.content.selector) {
     $content = $(hostConfig.content.selector);
@@ -176,7 +177,7 @@ function getCatalog($, url) {
   }
   return (($c) => {
     let c = [];
-    for (let index of Array.from({length: $c.length}, (v, i) => i)) {
+    for (let index of Array.from({ length: $c.length }, (v, i) => i)) {
       $ch = $c.eq(index);
       let title = $ch.text();
       if (!/第.+章/.test(title)) title = `第${index + 1}章 ${title}`;
@@ -206,7 +207,7 @@ function writeFile(info, catalog, saveDir) {
 
 async function start(url) {
   logger.info('程序启动');
-  try{
+  try {
     fs.mkdirSync(config.saveDir);
   } catch (err) {
     if (err.code !== 'EEXIST') {
@@ -251,13 +252,10 @@ async function start(url) {
 
 if (!module.parent) {
   let param = process.argv[2];
-  if (!param) {
-    logger.error('未传入必要参数，请重新输入');
-    process.exit();
-  }
-  if (param === 'list') {
+  if (!param || param === 'list') {
+    console.log('当前支持站点：');
     for (host in config.hosts) {
-      console.log(host);
+      console.log('http://' + host);
     }
     process.exit();
   }
